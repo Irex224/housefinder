@@ -22,10 +22,10 @@ const Auth = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    setMode(resolveMode());
-    setError("");
-  }, [location.pathname, searchParams]);
+ useEffect(() => {
+  setMode(resolveMode());
+  setError("");
+}, [location.pathname, searchParams, resolveMode]);
 
   const switchMode = (nextMode) => {
     setMode(nextMode);
