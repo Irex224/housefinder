@@ -1,18 +1,23 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../api";
+import ReportModal from "../components/ReportModal";
+import SaveButton from "../components/SaveButton";
+import TrustBanner from "../components/TrustBanner";
+import VerifiedBadge from "../components/VerifiedBadge";
 
 const HouseDetails = () => {
   const { id } = useParams();
   const [house, setHouse] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [inquirySent, setInquirySent] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchHouse = async () => {
@@ -41,7 +46,6 @@ const HouseDetails = () => {
         message,
       });
 
-      alert("Message sent successfully");
       setInquirySent(true);
       setName("");
       setEmail("");
@@ -51,6 +55,11 @@ const HouseDetails = () => {
       setInquirySent(false);
       alert("Failed to send inquiry. Please try again.");
     }
+  };
+
+  const handleReport = async (reason) => {
+    await api.post("/reports", { houseId: house._id, reason });
+    setReportSuccess(true);
   };
 
   if (loading) {
@@ -81,9 +90,10 @@ const HouseDetails = () => {
       : []) || [];
 
   const mainImage = images[activeImageIndex] || images[0] || "";
+  const agent = house.agentId;
 
   return (
-    <div className="bg-slate-50 px-4 py-8">
+    <div className="bg-slate-50 px-4 py-6 sm:py-8">
       <div className="mx-auto max-w-4xl">
         <button
           type="button"
@@ -95,7 +105,7 @@ const HouseDetails = () => {
 
         <div className="overflow-hidden rounded-2xl bg-white shadow-md">
           <div className="p-4 pb-0 md:p-6 md:pb-0">
-            <div className="relative h-64 w-full overflow-hidden rounded-xl bg-slate-100 md:h-96">
+            <div className="relative h-56 w-full overflow-hidden rounded-xl bg-slate-100 sm:h-72 md:h-96">
               {mainImage ? (
                 <img
                   src={mainImage}
@@ -133,98 +143,72 @@ const HouseDetails = () => {
             )}
           </div>
 
-          <div className="p-5 md:p-6">
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <h1 className="mb-2 text-2xl font-bold text-slate-900 md:text-3xl">
-                {house.location}
-              </h1>
-              {house.isVerified && (
-                <span
-                  style={{
-                    background: "green",
-                    color: "white",
-                    padding: "4px 8px",
-                    borderRadius: "6px",
-                    marginLeft: "10px",
-                  }}
-                >
-                  ✔ Verified Agent
-                </span>
-              )}
+          <div className="space-y-5 p-5 md:p-6">
+            <div>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">
+                  {house.location}
+                </h1>
+                {house.isVerified && <VerifiedBadge />}
+              </div>
+              <p className="text-sm text-slate-600">
+                {house.bedrooms} bedroom
+                {Number(house.bedrooms) > 1 ? "s" : ""}
+              </p>
+              <p className="mt-1 text-xl font-semibold text-blue-700">
+                ₦{Number(house.price).toLocaleString()}
+              </p>
+              <div className="mt-3">
+                <SaveButton houseId={house._id} />
+              </div>
             </div>
-            <p className="mb-1 text-sm text-slate-600">
-              Bedrooms: <span className="font-semibold">{house.bedrooms}</span>
-            </p>
-            <p className="mb-5 text-lg font-semibold text-blue-700">
-              ₦{Number(house.price).toLocaleString()}
-            </p>
 
-            <section className="mb-8">
+            {agent && typeof agent === "object" && (
+              <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Listed by
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-slate-900">{agent.name}</span>
+                  {agent.isVerifiedAgent && <VerifiedBadge />}
+                </div>
+                {agent.area && (
+                  <p className="mt-1 text-xs text-slate-600">Area: {agent.area}</p>
+                )}
+              </div>
+            )}
+
+            <section>
               <h2 className="mb-2 text-lg font-semibold text-slate-900">
                 Description
               </h2>
-              {house.description ? (
-                <p className="text-sm leading-relaxed text-slate-600">
-                  {house.description}
-                </p>
-              ) : (
-                <p className="text-sm leading-relaxed text-slate-600">
-                  No description provided.
-                </p>
-              )}
+              <p className="text-sm leading-relaxed text-slate-600">
+                {house.description || "No description provided."}
+              </p>
             </section>
+
+            <TrustBanner />
 
             <button
               type="button"
-              onClick={async () => {
-                const reason = prompt(
-                  "Why are you reporting this listing?"
-                );
-                if (!reason) return;
-
-                try {
-                  await api.post("/reports", {
-                    houseId: house._id,
-                    reason,
-                  });
-                  alert("Report submitted. Thank you.");
-                } catch (err) {
-                  console.error("Error submitting report:", err);
-                  alert("Failed to submit report. Please try again.");
-                }
-              }}
-              style={{
-                background: "red",
-                color: "white",
-                padding: "8px",
-                border: "none",
-                borderRadius: "5px",
-                marginTop: "10px",
-              }}
+              onClick={() => setReportOpen(true)}
+              className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 sm:w-auto"
             >
-              🚨 Report Listing
+              Report this listing
             </button>
 
-            <div
-              style={{
-                background: "#fff3cd",
-                color: "#856404",
-                padding: "12px",
-                borderRadius: "8px",
-                margin: "15px 0",
-              }}
-            >
-              ⚠️ Do NOT make payment without informing HouseFinder. Always
-              verify listings and beware of fraud.
-            </div>
+            {reportSuccess && (
+              <p className="text-sm font-medium text-green-600">
+                Report submitted. Thank you for helping keep HouseFinder safe.
+              </p>
+            )}
 
             <section className="border-t border-slate-100 pt-6">
               <h2 className="mb-3 text-lg font-semibold text-slate-900">
-                Contact Landlord
+                Contact landlord
               </h2>
               <p className="mb-4 text-sm text-slate-600">
-                Send a message to the landlord to ask questions or schedule a
-                viewing.
+                Send a message to ask questions or schedule a viewing.
               </p>
 
               <form onSubmit={handleContactSubmit} className="space-y-4">
@@ -237,7 +221,7 @@ const HouseDetails = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
 
@@ -250,7 +234,7 @@ const HouseDetails = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
 
@@ -264,13 +248,13 @@ const HouseDetails = () => {
                     required
                     rows={4}
                     placeholder="I'm interested in this property. Please contact me."
-                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+                  className="w-full rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto"
                 >
                   Send inquiry
                 </button>
@@ -285,6 +269,12 @@ const HouseDetails = () => {
           </div>
         </div>
       </div>
+
+      <ReportModal
+        isOpen={reportOpen}
+        onClose={() => setReportOpen(false)}
+        onSubmit={handleReport}
+      />
     </div>
   );
 };

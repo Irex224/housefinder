@@ -1,19 +1,50 @@
 const House = require("../models/House");
+const {
+  canManageListing,
+  canUploadListing,
+  isAdmin,
+  isAgent,
+} = require("../utils/roles");
 
-// GET /api/houses
+const buildHouseFilter = (query) => {
+  const filter = {};
+
+  if (query.location) {
+    filter.location = { $regex: query.location, $options: "i" };
+  }
+  if (query.maxPrice) {
+    filter.price = { $lte: Number(query.maxPrice) };
+  }
+  if (query.bedrooms) {
+    filter.bedrooms = { $gte: Number(query.bedrooms) };
+  }
+
+  return filter;
+};
+
 const getHouses = async (req, res) => {
   try {
-    const houses = await House.find();
+    const filter = buildHouseFilter(req.query);
+
+    if (req.query.mine === "true" && req.user) {
+      filter.agentId = req.user._id;
+    }
+
+    const houses = await House.find(filter)
+      .populate("agentId", "name isVerifiedAgent area isSuspended")
+      .sort({ createdAt: -1 });
     res.json(houses);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch houses" });
   }
 };
 
-// GET /api/houses/:id
 const getHouseById = async (req, res) => {
   try {
-    const house = await House.findById(req.params.id);
+    const house = await House.findById(req.params.id).populate(
+      "agentId",
+      "name isVerifiedAgent area phone isSuspended"
+    );
     if (!house) {
       return res.status(404).json({ message: "House not found" });
     }
@@ -23,37 +54,59 @@ const getHouseById = async (req, res) => {
   }
 };
 
-// POST /api/houses
 const createHouse = async (req, res) => {
   try {
-    const { location, price, bedrooms, description } = req.body;
+    if (!canUploadListing(req.user)) {
+      return res.status(403).json({
+        message: isAgent(req.user)
+          ? "Verified agents only can upload listings"
+          : "You do not have permission to upload listings",
+      });
+    }
 
+    const { location, price, bedrooms, description } = req.body;
     const files = req.files || [];
     const imageUrls = files.map((file) => file.path);
 
     if (!imageUrls.length) {
-      return res.status(400).json({ error: "Image upload failed" });
+      return res.status(400).json({ error: "At least one image is required" });
     }
 
-    const house = new House({
+    const houseData = {
       location,
       price,
       bedrooms,
       description,
       images: imageUrls,
-    });
+      agentId: req.user._id,
+      isVerified: isAdmin(req.user) || req.user.isVerifiedAgent,
+    };
 
+    const house = new House(houseData);
     await house.save();
-    res.status(201).json(house);
+
+    const populated = await House.findById(house._id).populate(
+      "agentId",
+      "name isVerifiedAgent area"
+    );
+    res.status(201).json(populated);
   } catch (err) {
     console.error("Error creating house:", err);
     res.status(400).json({ error: "Failed to add house" });
   }
 };
 
-// PUT /api/houses/:id
 const updateHouse = async (req, res) => {
   try {
+    const house = await House.findById(req.params.id);
+    if (!house) {
+      return res.status(404).json({ message: "House not found" });
+    }
+
+    if (!canManageListing(req.user, house)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
     const { location, price, bedrooms, description } = req.body;
     const files = req.files || [];
 
@@ -64,19 +117,14 @@ const updateHouse = async (req, res) => {
     if (description !== undefined) updateData.description = description;
 
     if (files.length) {
-      const imageUrls = files.map((file) => file.path);
-      updateData.images = imageUrls;
+      updateData.images = files.map((file) => file.path);
     }
 
     const updatedHouse = await House.findByIdAndUpdate(
       req.params.id,
       updateData,
       { new: true }
-    );
-
-    if (!updatedHouse) {
-      return res.status(404).json({ message: "House not found" });
-    }
+    ).populate("agentId", "name isVerifiedAgent area");
 
     res.json(updatedHouse);
   } catch (err) {
@@ -85,13 +133,18 @@ const updateHouse = async (req, res) => {
   }
 };
 
-// DELETE /api/houses/:id
 const deleteHouse = async (req, res) => {
   try {
-    const deletedHouse = await House.findByIdAndDelete(req.params.id);
-    if (!deletedHouse) {
+    const house = await House.findById(req.params.id);
+    if (!house) {
       return res.status(404).json({ message: "House not found" });
     }
+
+    if (!canManageListing(req.user, house)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    await House.findByIdAndDelete(req.params.id);
     res.json({ message: "House deleted successfully" });
   } catch (err) {
     res.status(400).json({ error: "Failed to delete house" });
@@ -105,4 +158,3 @@ module.exports = {
   updateHouse,
   deleteHouse,
 };
-

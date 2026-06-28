@@ -7,23 +7,38 @@ const {
   updateHouse,
   deleteHouse,
 } = require("../controllers/houseController");
+const {
+  protect,
+  optionalProtect,
+  authorize,
+} = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// GET all houses
-router.get("/", getHouses);
-
-// GET a single house by ID
+router.get("/", optionalProtect, getHouses);
 router.get("/:id", getHouseById);
 
-// CREATE a house with multiple images
-router.post("/", upload.array("images", 10), createHouse);
+router.post(
+  "/",
+  protect,
+  authorize("agent", "moderator", "superadmin"),
+  upload.array("images", 10),
+  createHouse
+);
 
-// UPDATE a house (optionally with new images)
-router.put("/:id", upload.array("images", 10), updateHouse);
+router.put(
+  "/:id",
+  protect,
+  authorize("agent", "moderator", "superadmin"),
+  upload.array("images", 10),
+  updateHouse
+);
 
-// DELETE a house
-router.delete("/:id", deleteHouse);
+router.delete(
+  "/:id",
+  protect,
+  authorize("agent", "moderator", "superadmin"),
+  deleteHouse
+);
 
 module.exports = router;
-

@@ -7,7 +7,11 @@ const HouseSchema = new mongoose.Schema(
     bedrooms: { type: Number, required: true },
     description: { type: String, default: "" },
     isVerified: { type: Boolean, default: false },
-    // Multiple images support; empty array is allowed and safe
+    agentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     images: {
       type: [String],
       default: [],

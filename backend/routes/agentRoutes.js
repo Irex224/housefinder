@@ -4,20 +4,31 @@ const {
   getApplications,
   approveAgent,
 } = require("../controllers/agentController");
+const { protect, authorize } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// POST /api/agents/apply
 router.post("/apply", applyAgent);
 
-// GET /api/agents/applications
-router.get("/applications", getApplications);
+router.get(
+  "/applications",
+  protect,
+  authorize("moderator", "superadmin"),
+  getApplications
+);
 
-// PUT /api/agents/:id/approve
-router.put("/:id/approve", approveAgent);
+router.put(
+  "/:id/approve",
+  protect,
+  authorize("moderator", "superadmin"),
+  approveAgent
+);
 
-// Backwards compatibility for existing frontend/dashboard
-router.patch("/applications/:id", approveAgent);
+router.patch(
+  "/applications/:id",
+  protect,
+  authorize("moderator", "superadmin"),
+  approveAgent
+);
 
 module.exports = router;
-

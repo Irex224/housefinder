@@ -8,9 +8,14 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: {
     type: String,
-    enum: ["user", "moderator", "superadmin"],
+    enum: ["user", "agent", "moderator", "superadmin"],
     default: "user",
   },
+  isVerifiedAgent: { type: Boolean, default: false },
+  isBanned: { type: Boolean, default: false },
+  isSuspended: { type: Boolean, default: false },
+  phone: { type: String, default: "" },
+  area: { type: String, default: "" },
 });
 
 // Hash password before saving

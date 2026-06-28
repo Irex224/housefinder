@@ -1,53 +1,96 @@
 require("dotenv").config();
+
 const express = require("express");
 const morgan = require("morgan");
 const mongoose = require("mongoose");
 const cors = require("cors");
 
-// --- Import Cloudinary & Upload ---
-const { upload } = require("./cloudinary"); // kept for backwards compatibility if needed elsewhere
+const { connectDatabase, isDatabaseConnected } = require("./config/database");
+const bootstrapSuperAdmin = require("./config/bootstrapSuperAdmin");
 
-// --- Import Routes ---
 const authRoutes = require("./routes/authRoutes");
 const inquiryRoutes = require("./routes/inquiryRoutes");
 const agentRoutes = require("./routes/agentRoutes");
 const houseRoutes = require("./routes/houses");
 const reportRoutes = require("./routes/reportRoutes");
-
+const adminRoutes = require("./routes/adminRoutes");
+const analyticsRoutes = require("./routes/analyticsRoutes");
+const favouriteRoutes = require("./routes/favouriteRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// --- Middleware ---
-app.use(cors()); // ✅ allows frontend to connect
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  "http://localhost:3000",
+  "https://housefinder-frontend.vercel.app",
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true);
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(morgan("dev"));
-// Static serving for uploaded files (if any local uploads are used)
 app.use("/uploads", express.static("uploads"));
 
-// --- MongoDB Connection ---
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ Connected to MongoDB Atlas"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
+app.use((req, res, next) => {
+  if (!isDatabaseConnected() && req.path.startsWith("/api") && req.path !== "/api/health") {
+    return res.status(503).json({
+      error: "Database unavailable",
+      message: "MongoDB is not connected. Check server logs.",
+    });
+  }
+  next();
+});
 
-// --- Routes ---
 app.get("/", (req, res) => {
-  res.send("HouseFinder backend is running 🚀");
+  res.json({
+    status: isDatabaseConnected() ? "ok" : "degraded",
+    message: "HouseFinder backend is running",
+    db: isDatabaseConnected() ? "connected" : "disconnected",
+  });
 });
-// --- Auth Routes ---
+
+app.get("/api/health", (req, res) => {
+  const connected = isDatabaseConnected();
+  res.status(connected ? 200 : 503).json({
+    status: connected ? "ok" : "degraded",
+    uptime: process.uptime(),
+    db: connected ? "connected" : "disconnected",
+    readyState: mongoose.connection.readyState,
+  });
+});
+
 app.use("/api/auth", authRoutes);
-// --- Inquiry Routes ---
 app.use("/api/inquiries", inquiryRoutes);
-// --- Agent Routes ---
 app.use("/api/agents", agentRoutes);
-// --- House Routes ---
 app.use("/api/houses", houseRoutes);
-
-// --- Report Routes ---
 app.use("/api/reports", reportRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/favourites", favouriteRoutes);
 
-// --- Start server ---
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+async function startServer() {
+  try {
+    await connectDatabase();
+    await bootstrapSuperAdmin();
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
+    });
+  } catch (err) {
+    console.error("❌ Server startup failed — MongoDB must be connected.");
+    process.exit(1);
+  }
+}
+
+startServer();

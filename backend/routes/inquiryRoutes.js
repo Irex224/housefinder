@@ -3,14 +3,17 @@ const {
   createInquiry,
   getInquiries,
 } = require("../controllers/inquiryController");
+const { protect, requireAdmin, authorize } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// POST /api/inquiries
 router.post("/", createInquiry);
 
-// GET /api/inquiries
-router.get("/", getInquiries);
+router.get(
+  "/",
+  protect,
+  authorize("agent", "moderator", "superadmin"),
+  getInquiries
+);
 
 module.exports = router;
-

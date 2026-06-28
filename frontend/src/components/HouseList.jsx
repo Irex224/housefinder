@@ -1,76 +1,54 @@
 import React from "react";
+import VerifiedBadge from "./VerifiedBadge";
+import { getHouseImage } from "../utils/helpers";
 
 const HouseList = ({ houses, onEdit, onDelete }) => {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-        gap: "20px",
-        marginTop: "20px",
-      }}
-    >
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {houses.map((house) => (
         <div
           key={house._id}
-          style={{
-            border: "1px solid #ccc",
-            borderRadius: "10px",
-            padding: "15px",
-            boxShadow: "0 0 5px rgba(0,0,0,0.1)",
-          }}
+          className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
         >
-          <img
-            src={house.image}
-            alt={house.location || "house"}
-            style={{ width: "100%", borderRadius: "8px", marginBottom: "10px" }}
-          />
-          <h3 style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            {house.location}
-            {house.isVerified && (
-              <span
-                style={{
-                  background: "green",
-                  color: "white",
-                  padding: "4px 8px",
-                  borderRadius: "6px",
-                }}
-              >
-                ✔ Verified Agent
-              </span>
+          <div className="relative h-44 bg-slate-100">
+            {getHouseImage(house) ? (
+              <img
+                src={getHouseImage(house)}
+                alt={house.location || "house"}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                No image
+              </div>
             )}
-          </h3>
-          <p>Bedrooms: {house.bedrooms}</p>
-          <p>Price: ₦{Number(house.price).toLocaleString()}</p>
+          </div>
 
-          <div style={{ marginTop: "10px" }}>
-            <button
-              onClick={() => onEdit(house)}
-              style={{
-                background: "#2563eb",
-                color: "white",
-                padding: "6px 12px",
-                borderRadius: "6px",
-                border: "none",
-                cursor: "pointer",
-                marginRight: "10px",
-              }}
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => onDelete(house._id)}
-              style={{
-                background: "red",
-                color: "white",
-                border: "none",
-                padding: "6px 12px",
-                borderRadius: "5px",
-                cursor: "pointer",
-              }}
-            >
-              Delete
-            </button>
+          <div className="p-4">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <h3 className="font-semibold text-slate-900">{house.location}</h3>
+              {house.isVerified && <VerifiedBadge />}
+            </div>
+            <p className="text-sm text-slate-600">
+              {house.bedrooms} bed · ₦{Number(house.price).toLocaleString()}
+            </p>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onEdit(house)}
+                className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(house._id)}
+                className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       ))}
