@@ -47,9 +47,9 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
-    fetchHouses();
-    if (superAdmin) fetchAnalytics();
-  }, []);
+  fetchHouses();
+  if (superAdmin) fetchAnalytics();
+}, [superAdmin]);
 
   const fetchHouses = async () => {
     try {
