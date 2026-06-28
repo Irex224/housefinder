@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../api";
 import { redirectAfterAuth } from "../utils/helpers";
@@ -8,11 +8,11 @@ const Auth = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const resolveMode = () => {
+  const resolveMode = useCallback(() => {
     if (location.pathname === "/register") return "signup";
     if (searchParams.get("mode") === "signup") return "signup";
     return "signin";
-  };
+  }, [location.pathname, searchParams]);
 
   const [mode, setMode] = useState(resolveMode);
 
